@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lasermesserfassung</title>
+
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+  body { font-family: Arial, sans-serif; background-color: #f2f4f7; margin: 0; padding: 0; }
+  .container { max-width: 430px; margin: 10px auto; background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
+  h2, h3 { text-align: center; color: #333; }
+  label { display: block; margin-top: 15px; font-weight: bold; font-size: 16px; }
+  input, select { margin-top: 5px; padding: 10px; width: 100%; box-sizing: border-box; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; }
+
+  /* Buttons */
+  button { padding: 14px 0; border: none; border-radius: 15px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
+  button:hover { opacity: .9; }
+  #speichern { background-color: #4CAF50; color: #fff; }
+  #zuruecksetzen { background-color: #f44336; color: #fff; }
+  #exportPDF { background-color: #2196F3; color: #fff; width: 100%; margin-top: 10px; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; display: block; overflow-x: auto; }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 100px; }
+  th { background-color: #4CAF50; color: white; position: sticky; top: 0; }
+
+  .autocomplete-wrapper { position: relative; }
+  .autocomplete-suggestions { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 8px; max-height: 180px; overflow-y: auto; z-index: 9999; display: none; }
+  .autocomplete-suggestion { padding: 10px; cursor: pointer; }
+  .autocomplete-suggestion:hover, .autocomplete-suggestion.active { background-color: #bde4ff; }
+  .autocomplete-highlight { font-weight: bold; color: #0077cc; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .col { flex: 1 1 48%; min-width: 48%; }
+
+  /* Uhrzeit + Jetzt + Einträge */
+  .time-row { display: flex; align-items: center; gap: 10px; }
+  .time-row input[type="time"] { width: 120px; flex-shrink: 0; }
+  #jetztBtn { width: auto; padding: 10px 15px; margin: 0; }
+  #eintraege { width: 80px; padding: 10px; text-align: center; background: #eee; border-radius: 10px; font-weight: bold; }
+
+  /* Speichern und Zurücksetzen nebeneinander */
+  .button-row { display: flex; gap: 10px; margin-top: 15px; }
+  .button-row button { flex: 1; }
+
+  @media (max-width: 430px) { 
+    .col { flex: 1 1 100%; min-width: 100%; } 
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+<h2>Lasermessungen erfassen</h2>
+
+<form id="fahrtForm">
+  <label>Örtlichkeit:
+    <select id="oertlichkeit" enterkeyhint="next">
+      <option value="">--Ort wählen--</option>
+      <option value="Wien 18., Hasenauerstraße">Wien 18., Hasenauerstraße</option>
+      <option value="Wien 18., Scheibenbergstraße">Wien 18., Scheibenbergstraße</option>
+      <option value="Wien 18., Peter-Jordan Straße">Wien 18., Peter-Jordan Straße</option>
+      <option value="Wien 18., Herbeckstraße">Wien 18., Herbeckstraße</option>
+    </select>
+  </label>
+
+  <div class="row">
+    <div class="col">
+      <label>Messorgan 1:</label>
+      <div class="autocomplete-wrapper">
+        <input type="text" id="messorgan1" autocomplete="off" enterkeyhint="next">
+        <div id="messorgan1Suggestions" class="autocomplete-suggestions"></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <label>Messorgan 2:</label>
+      <div class="autocomplete-wrapper">
+        <input type="text" id="messorgan2" autocomplete="off" enterkeyhint="next">
+        <div id="messorgan2Suggestions" class="autocomplete-suggestions"></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <label>Messorgan 3:</label>
+      <div class="autocomplete-wrapper">
+        <input type="text" id="messorgan3" autocomplete="off" enterkeyhint="next">
+        <div id="messorgan3Suggestions" class="autocomplete-suggestions"></div>
+      </div>
+    </div>
+  </div>
+
+  <label>Kennzeichen:
+    <input type="text" id="kennzeichen" required enterkeyhint="next">
+  </label>
+
+  <div class="row">
+    <div class="col">
+      <label>Marke:</label>
+      <div class="autocomplete-wrapper">
+        <input type="text" id="marke" autocomplete="off" enterkeyhint="next">
+        <div id="markeSuggestions" class="autocomplete-suggestions"></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <label>Farbe:</label>
+      <div class="autocomplete-wrapper">
+        <input type="text" id="farbe" autocomplete="off" enterkeyhint="next">
+        <div id="farbeSuggestions" class="autocomplete-suggestions"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <label>Km/h:
+        <input type="text" id="kmh" required inputmode="decimal" pattern="[0-9]*[.,]?[0-9]+" enterkeyhint="next">
+      </label>
+    </div>
+
+    <div class="col">
+      <label>Meter:
+        <input type="text" id="meter" required inputmode="decimal" pattern="[0-9]*[.,]?[0-9]+" enterkeyhint="next">
+      </label>
+    </div>
+
+    <div class="col">
+      <label>Fahrtrichtung:
+        <select id="richtung" enterkeyhint="next"></select>
+      </label>
+
+      <label>Uhrzeit:</label>
+      <div class="time-row">
+        <input type="time" id="uhrzeit" required enterkeyhint="done">
+        <button type="button" id="jetztBtn">Jetzt</button>
+        <input type="text" id="eintraege" value="0" readonly>
+      </div>
+    </div>
+  </div>
+
+  <div class="button-row">
+    <button type="submit" id="speichern">Speichern</button>
+    <button type="button" id="zuruecksetzen">Zurücksetzen</button>
+  </div>
+
+</form>
+
+<h3>Messungen:</h3>
+<table id="fahrtTable">
+  <thead>
+    <tr>
+      <th>Kennzeichen</th>
+      <th>Marke</th>
+      <th>Farbe</th>
+      <th>Km/h</th>
+      <th>Meter</th>
+      <th>Uhrzeit</th>
+      <th>Fahrtrichtung</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<button id="exportPDF">Liste als PDF speichern</button>
+</div>
+
+<script>
+/* ------------------- Grundfunktionen ------------------- */
+const fahrtListe = [];
+const tableBody = document.querySelector("#fahrtTable tbody");
+
+const eintraegeFeld = document.getElementById("eintraege");
+
+function updateEintraege() {
+  eintraegeFeld.value = fahrtListe.length;
+}
+
+/* Fahrtrichtungen */
+const ortFahrtrichtungen = {
+  "Wien 18., Hasenauerstraße": ["Türkenschanzplatz", "Gymnasiumstraße"],
+  "Wien 18., Scheibenbergstraße": ["Gersthofer Straße", "Bastiengasse"],
+  "Wien 18., Peter-Jordan Straße": ["Gersthof", "Döbling"],
+  "Wien 18., Herbeckstraße": ["Währing", "Gerichtsgasse"]
+};
+
+const oertlichkeitDropdown = document.getElementById("oertlichkeit");
+const richtungDropdown = document.getElementById("richtung");
+
+function updateRichtungen() {
+  const ort = oertlichkeitDropdown.value;
+  const currentRichtung = richtungDropdown.value;
+  richtungDropdown.innerHTML = "";
+  if (ortFahrtrichtungen[ort]) {
+    ortFahrtrichtungen[ort].forEach(r => {
+      const opt = document.createElement("option");
+      opt.textContent = r;
+      opt.value = r;
+      richtungDropdown.appendChild(opt);
+    });
+    if (ortFahrtrichtungen[ort].includes(currentRichtung)) {
+      richtungDropdown.value = currentRichtung;
+    }
+  }
+}
+
+oertlichkeitDropdown.addEventListener("change", updateRichtungen);
+
+/* Jetzt-Button */
+document.getElementById("jetztBtn").addEventListener("click", () => {
+  const n = new Date();
+  document.getElementById("uhrzeit").value =
+    `${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`;
+});
+
+/* Speichern */
+document.getElementById("fahrtForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const fahrt = {
+    kennzeichen: kennzeichen.value,
+    marke: marke.value,
+    farbe: farbe.value,
+    kmh: kmh.value.replace(",", "."),
+    meter: meter.value.replace(",", "."),
+    uhrzeit: uhrzeit.value,
+    richtung: richtung.value
+  };
+  fahrtListe.push(fahrt);
+  updateTable();
+  updateEintraege();
+
+  kennzeichen.value = "";
+  marke.value = "";
+  farbe.value = "";
+  kmh.value = "";
+  meter.value = "";
+  uhrzeit.value = "";
+});
+
+/* Tabelle aktualisieren */
+function updateTable() {
+  tableBody.innerHTML = "";
+  fahrtListe.forEach(f => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${f.kennzeichen}</td>
+      <td>${f.marke}</td>
+      <td>${f.farbe}</td>
+      <td>${f.kmh}</td>
+      <td>${f.meter}</td>
+      <td>${f.uhrzeit}</td>
+      <td>${f.richtung}</td>
+    `;
+    tableBody.appendChild(row);
+  });
+}
+
+/* Reset */
+document.getElementById("zuruecksetzen").addEventListener("click", () => {
+  fahrtListe.length = 0;
+  updateTable();
+  updateEintraege();
+  document.getElementById("fahrtForm").reset();
+  richtungDropdown.innerHTML = "";
+});
+
+/* PDF */
+function generatePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(18);
+  doc.text("Lasermessungen", 14, 22);
+
+  const oertlichkeit = oertlichkeitDropdown.value || "Ort unbekannt";
+  const messorgan1 = document.getElementById("messorgan1").value || "-";
+  const messorgan2 = document.getElementById("messorgan2").value || "-";
+  const messorgan3 = document.getElementById("messorgan3").value || "-";
+
+  doc.setFontSize(12);
+  doc.text(`Örtlichkeit: ${oertlichkeit}`, 14, 32);
+  doc.text(`Messorgan 1: ${messorgan1}`, 14, 40);
+  doc.text(`Messorgan 2: ${messorgan2}`, 14, 48);
+  doc.text(`Messorgan 3: ${messorgan3}`, 14, 56);
+
+  const columns = ["Kennzeichen","Marke","Farbe","Km/h","Meter","Uhrzeit","Fahrtrichtung"];
+  const startY = 64;
+  const rows = fahrtListe.map(f => [
+    f.kennzeichen, f.marke, f.farbe, f.kmh, f.meter, f.uhrzeit, f.richtung
+  ]);
+
+  doc.autoTable({ startY, head: [columns], body: rows });
+
+  const finalY = doc.lastAutoTable.finalY || startY;
+  doc.text(`Gesamtanzahl der gemessenen Fahrzeuge: ${fahrtListe.length}`, 14, finalY + 10);
+
+  const datum = new Date();
+  const dd = String(datum.getDate()).padStart(2,"0");
+  const mm = String(datum.getMonth()+1).padStart(2,"0");
+  const yyyy = datum.getFullYear();
+  doc.save(`${dd}.${mm}.${yyyy}_Lasermessen_${oertlichkeit}.pdf`);
+}
+
+document.getElementById("exportPDF").addEventListener("click", generatePDF);
+
+/* ------------------- Autocomplete ------------------- */
+function autocomplete(inputElem, suggestions) {
+  const container = inputElem.parentElement.querySelector(".autocomplete-suggestions");
+  let currentIndex = -1;
+  let debounceTimer = null;
+
+  function updateList() {
+    const val = inputElem.value.trim().toLowerCase();
+    container.innerHTML = "";
+    currentIndex = -1;
+    if (!val) { container.style.display = "none"; return; }
+
+    /* Änderung: NUR Treffer, die mit Eingabe beginnen */
+    const filtered = suggestions.filter(s => 
+      s.toLowerCase().startsWith(val)
+    );
+
+    if (!filtered.length) { container.style.display = "none"; return; }
+
+    filtered.forEach(entry => {
+      const div = document.createElement("div");
+      div.className = "autocomplete-suggestion";
+
+      const regex = new RegExp(`^(${val})`, "i");
+      div.innerHTML = entry.replace(regex, "<span class='autocomplete-highlight'>$1</span>");
+
+      div.addEventListener("click", () => { 
+        inputElem.value = entry; 
+        container.style.display = "none"; 
+      });
+
+      container.appendChild(div);
+    });
+
+    container.style.display = "block";
+  }
+
+  inputElem.addEventListener("input", () => { 
+    clearTimeout(debounceTimer); 
+    debounceTimer = setTimeout(updateList, 120); 
+  });
+
+  inputElem.addEventListener("keydown", e => {
+    const items = [...container.querySelectorAll(".autocomplete-suggestion")];
+    if (!items.length) return;
+
+    if (e.key === "ArrowDown") {
+      currentIndex = (currentIndex + 1) % items.length;
+      updateActive(items);
+      e.preventDefault();
+    }
+    if (e.key === "ArrowUp") {
+      currentIndex = (currentIndex - 1 + items.length) % items.length;
+      updateActive(items);
+      e.preventDefault();
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (currentIndex >= 0) items[currentIndex].click();
+    }
+    if (e.key === "Escape") {
+      container.style.display = "none";
+    }
+  });
+
+  function updateActive(items) {
+    items.forEach(i => i.classList.remove("active"));
+    if (currentIndex >= 0) items[currentIndex].classList.add("active");
+  }
+
+  document.addEventListener("click", e => {
+    if (!inputElem.parentElement.contains(e.target))
+      container.style.display = "none";
+  });
+}
+
+const marken = ["Volkswagen","Toyota","Mercedes","BMW","Renault","Peugeot","Škoda","Ford","Audi","Fiat","Opel","Hyundai","Kia","Nissan","Seat"];
+const farben = ["Schwarz","Weiß","Silber","Grau","Blau","Rot","Grün","Gelb","Braun","Orange","Beige","Violett"];
+const messorgane = ["Dornstauder, Insp.","Schrom, Asp.","Besenhofer, Asp.","Mise, Insp.","Markovic, Insp.","Todt, Insp.","Spitzer, RvI.","Veselko, RvI."];
+
+autocomplete(document.getElementById("marke"), marken);
+autocomplete(document.getElementById("farbe"), farben);
+autocomplete(document.getElementById("messorgan1"), messorgane);
+autocomplete(document.getElementById("messorgan2"), messorgane);
+autocomplete(document.getElementById("messorgan3"), messorgane);
+
+/* iPhone Enter → nächstes Feld */
+const allInputs = Array.from(document.querySelectorAll("input, select")).filter(el => !el.disabled && el.type !== "hidden");
+allInputs.forEach((el, index) => {
+  el.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      let next = allInputs[index + 1];
+      if (next) next.focus();
+    }
+  });
+});
+</script>
+</body>
+</html>
