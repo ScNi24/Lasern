@@ -185,8 +185,8 @@ function updateEintraege() {
 const ortFahrtrichtungen = {
   "Wien 18., Hasenauerstraße": ["Türkenschanzplatz", "Gymnasiumstraße"],
   "Wien 18., Scheibenbergstraße": ["Gersthofer Straße", "Bastiengasse"],
-  "Wien 18., Peter-Jordan Straße": ["Gersthof", "Döbling"],
-  "Wien 18., Herbeckstraße": ["Währing", "Gerichtsgasse"]
+  "Wien 18., Peter-Jordan Straße": ["Felix-Dahn-Straße", "Dänenstraße"],
+  "Wien 18., Herbeckstraße": ["Gersthoferstraße", "Erndtgasse"]
 };
 
 const oertlichkeitDropdown = document.getElementById("oertlichkeit");
@@ -297,7 +297,7 @@ function generatePDF() {
   doc.autoTable({ startY, head: [columns], body: rows });
 
   const finalY = doc.lastAutoTable.finalY || startY;
-  doc.text(`Gesamtanzahl der gemessenen Fahrzeuge: ${fahrtListe.length}`, 14, finalY + 10);
+  doc.text(`Gemessenen Fahrzeuge: ${fahrtListe.length}`, 14, finalY + 10);
 
   const datum = new Date();
   const dd = String(datum.getDate()).padStart(2,"0");
@@ -384,9 +384,9 @@ function autocomplete(inputElem, suggestions) {
   });
 }
 
-const marken = ["Volkswagen","Toyota","Mercedes","BMW","Renault","Peugeot","Škoda","Ford","Audi","Fiat","Opel","Hyundai","Kia","Nissan","Seat"];
+const marken = ["Volkswagen","Toyota","Mercedes","BMW","Renault","Peugeot","Škoda","Ford","Audi","Fiat","Opel","Hyundai","Kia","Nissan","Seat","Tesla","MG","Jeep","Land Rover","Bentley"];
 const farben = ["Schwarz","Weiß","Silber","Grau","Blau","Rot","Grün","Gelb","Braun","Orange","Beige","Violett"];
-const messorgane = ["Dornstauder, Insp.","Schrom, Asp.","Besenhofer, Asp.","Mise, Insp.","Markovic, Insp.","Todt, Insp.","Spitzer, RvI.","Veselko, RvI."];
+const messorgane = ["Dornstauder, Insp.","Schrom, Asp.","Besenhofer, Asp.","Mise, Insp.","Markovic, Insp.","Todt, Insp.","Spitzer, RvI.","Veselko, RvI.","Dungl, Insp."];
 
 autocomplete(document.getElementById("marke"), marken);
 autocomplete(document.getElementById("farbe"), farben);
@@ -408,3 +408,4 @@ allInputs.forEach((el, index) => {
 </script>
 </body>
 </html>
+
